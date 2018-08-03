@@ -51,6 +51,10 @@ data:
     endpoint: /var/run/contiv/cni.sock
   http.conf: |
       endpoint: 0.0.0.0:9999
+  bolt.conf: |
+    db-path: /var/run/contiv/bolt.db
+    file-mode: 432
+    lock-timeout: 0
 
 ---
 

@@ -18,11 +18,11 @@ import (
 	"github.com/contiv/vpp/plugins/kvdbproxy"
 	"github.com/ligato/cn-infra/config"
 	"github.com/ligato/cn-infra/datasync/resync"
-	"github.com/ligato/cn-infra/db/keyval/etcd"
 	"github.com/ligato/cn-infra/logging"
 	"github.com/ligato/cn-infra/rpc/grpc"
 	"github.com/ligato/cn-infra/servicelabel"
 	"github.com/ligato/vpp-agent/plugins/govppmux"
+	"github.com/ligato/cn-infra/db/keyval/bolt"
 )
 
 const (
@@ -46,7 +46,7 @@ func NewPlugin(opts ...Option) *Plugin {
 	p.GoVPP = &govppmux.DefaultPlugin
 	p.GRPC = &grpc.DefaultPlugin
 	p.Proxy = &kvdbproxy.DefaultPlugin
-	p.ETCD = &etcd.DefaultPlugin
+	p.KvProto = &bolt.DefaultPlugin
 
 	for _, o := range opts {
 		o(p)

@@ -35,7 +35,6 @@ import (
 	"github.com/contiv/vpp/plugins/kvdbproxy"
 	"github.com/ligato/cn-infra/datasync"
 	"github.com/ligato/cn-infra/datasync/resync"
-	"github.com/ligato/cn-infra/db/keyval/etcd"
 	"github.com/ligato/cn-infra/infra"
 	"github.com/ligato/cn-infra/logging"
 	"github.com/ligato/cn-infra/rpc/grpc"
@@ -45,6 +44,7 @@ import (
 	linuxlocalclient "github.com/ligato/vpp-agent/clientv1/linux/localclient"
 	"github.com/ligato/vpp-agent/plugins/govppmux"
 	"github.com/ligato/vpp-agent/plugins/vpp"
+	"github.com/ligato/cn-infra/db/keyval"
 )
 
 // Plugin represents the instance of the Contiv network plugin, that transforms CNI requests received over
@@ -81,7 +81,7 @@ type Deps struct {
 	VPP          *vpp.Plugin
 	GoVPP        govppmux.API
 	Resync       resync.Subscriber
-	ETCD         *etcd.Plugin
+	KvProto      keyval.KvProtoPlugin
 	Watcher      datasync.KeyValProtoWatcher
 }
 
@@ -134,7 +134,7 @@ type InterfaceWithIP struct {
 
 // Init initializes the Contiv plugin. Called automatically by plugin infra upon contiv-agent startup.
 func (plugin *Plugin) Init() error {
-	broker := plugin.ETCD.NewBroker(plugin.ServiceLabel.GetAgentPrefix())
+	broker := plugin.KvProto.NewBroker(plugin.ServiceLabel.GetAgentPrefix())
 	// init map with configured containers
 	plugin.configuredContainers = containeridx.NewConfigIndex(plugin.Log, "containers", broker)
 
@@ -158,7 +158,7 @@ func (plugin *Plugin) Init() error {
 	if plugin.myNodeConfig != nil {
 		nodeIP = plugin.myNodeConfig.MainVPPInterface.IP
 	}
-	plugin.nodeIDAllocator = newIDAllocator(plugin.ETCD, plugin.ServiceLabel.GetAgentLabel(), nodeIP)
+	plugin.nodeIDAllocator = newIDAllocator(plugin.KvProto, plugin.ServiceLabel.GetAgentLabel(), nodeIP)
 	nodeID, err := plugin.nodeIDAllocator.getID()
 	if err != nil {
 		return err

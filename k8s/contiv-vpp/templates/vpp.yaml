@@ -97,6 +97,10 @@ data:
       client-basic-auth:
         - {{ .Values.http.basicAuth | quote }}
       {{- end }}
+  bolt.conf: |
+    db-path: /var/run/contiv/bolt.db
+    file-mode: 432
+    lock-timeout: 0
 
 ---
 

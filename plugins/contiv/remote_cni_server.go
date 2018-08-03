@@ -358,7 +358,7 @@ func (s *remoteCNIserver) configureVswitchConnectivity() error {
 		return err
 	}
 
-	// persist vswitch configuration in ETCD
+	// persist vswitch configuration in db
 	err = s.persistVswitchConfig(config)
 	if err != nil {
 		s.Logger.Error(err)
@@ -867,7 +867,7 @@ func (s *remoteCNIserver) configureVswitchVrfRoutes(config *vswitchConfig) error
 	return nil
 }
 
-// persistVswitchConfig persists vswitch configuration in ETCD
+// persistVswitchConfig persists vswitch configuration in db
 func (s *remoteCNIserver) persistVswitchConfig(config *vswitchConfig) error {
 	if config.configured {
 		s.Logger.Info("Persisting of vswitch configuration is skipped")
@@ -918,7 +918,7 @@ func (s *remoteCNIserver) persistVswitchConfig(config *vswitchConfig) error {
 	}
 	changes[vpp_l4.FeatureKey()] = config.l4Features
 
-	// persist the changes in ETCD
+	// persist the changes in db
 	err = s.persistChanges(nil, changes, true)
 	if err != nil {
 		s.Logger.Error(err)
@@ -1037,7 +1037,7 @@ func (s *remoteCNIserver) configureContainerConnectivity(request *cni.CNIRequest
 		}
 	}
 
-	// persist POD configuration in ETCD
+	// persist POD configuration in db
 	err = s.persistPodConfig(config)
 	if err != nil {
 		s.Logger.Error(err)
@@ -1147,7 +1147,7 @@ func (s *remoteCNIserver) unconfigureContainerConnectivityWithoutLock(request *c
 		return s.generateCniErrorReply(err)
 	}
 
-	// delete persisted POD configuration from ETCD
+	// delete persisted POD configuration from db
 	err = s.deletePersistedPodConfig(config)
 	if err != nil {
 		s.Logger.Error(err)
@@ -1321,7 +1321,7 @@ func (s *remoteCNIserver) unconfigurePodVPPSide(config *container.Persisted, txn
 	return nil
 }
 
-// deletePersistedPodConfig persists POD configuration into ETCD.
+// deletePersistedPodConfig persists POD configuration into db.
 func (s *remoteCNIserver) persistPodConfig(config *PodConfig) error {
 	var err error
 	changes := map[string]proto.Message{}
@@ -1358,9 +1358,9 @@ func (s *remoteCNIserver) persistPodConfig(config *PodConfig) error {
 	return nil
 }
 
-// deletePersistedPodConfig deletes persisted POD configuration from ETCD.
+// deletePersistedPodConfig deletes persisted POD configuration from db.
 func (s *remoteCNIserver) deletePersistedPodConfig(config *container.Persisted) error {
-	// collect keys to be removed from ETCD
+	// collect keys to be removed from db
 	var removedKeys []string
 
 	// POD interface configuration
@@ -1392,7 +1392,7 @@ func (s *remoteCNIserver) deletePersistedPodConfig(config *container.Persisted) 
 
 	_, skip := s.configuredInThisRun[config.ID]
 
-	// remove persisted configuration from ETCD
+	// remove persisted configuration from db
 	err := s.persistChanges(removedKeys, nil, skip)
 	if err != nil {
 		s.Logger.Error(err)
@@ -1464,7 +1464,7 @@ func (s *remoteCNIserver) generateCniErrorReply(err error) (*cni.CNIReply, error
 	return reply, err
 }
 
-// persistChanges persists the changes passed as input arguments into ETCD.
+// persistChanges persists the changes passed as input arguments into db.
 func (s *remoteCNIserver) persistChanges(removedKeys []string, putChanges map[string]proto.Message, ignoreDel bool) error {
 	var err error
 	// TODO rollback in case of error

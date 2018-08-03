@@ -15,7 +15,6 @@
 package contiv
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"sync"
@@ -23,7 +22,6 @@ import (
 	"github.com/contiv/vpp/plugins/contiv/model/node"
 	"github.com/contiv/vpp/plugins/ksr"
 	"github.com/ligato/cn-infra/db/keyval"
-	"github.com/ligato/cn-infra/db/keyval/etcd"
 	"github.com/ligato/cn-infra/servicelabel"
 	"strconv"
 	"strings"
@@ -41,12 +39,11 @@ var (
 
 // idAllocator manages allocation/deallocation of unique number identifying a node in the k8s cluster.
 // Retrieved identifier is used as input of IPAM module for the node.
-// (AllocatedID is represented by an entry in ETCD. The process of allocation leverages etcd transaction
+// (AllocatedID is represented by an entry in db. The process of allocation leverages db transaction
 // to atomically check if the key exists and if not, a new key-value pair representing
 // the allocation is inserted)
 type idAllocator struct {
 	sync.Mutex
-	etcd   *etcd.Plugin
 	broker keyval.ProtoBroker
 
 	allocated bool
@@ -60,10 +57,9 @@ type idAllocator struct {
 }
 
 // newIDAllocator creates new instance of idAllocator
-func newIDAllocator(etcd *etcd.Plugin, nodeName string, nodeIP string) *idAllocator {
+func newIDAllocator(proto keyval.KvProtoPlugin, nodeName string, nodeIP string) *idAllocator {
 	return &idAllocator{
-		etcd:     etcd,
-		broker:   etcd.NewBroker(servicelabel.GetDifferentAgentPrefix(ksr.MicroserviceLabel)),
+		broker:   proto.NewBroker(servicelabel.GetDifferentAgentPrefix(ksr.MicroserviceLabel)),
 		nodeName: nodeName,
 		nodeIP:   nodeIP,
 	}
@@ -119,14 +115,14 @@ func (ia *idAllocator) getID() (id uint32, err error) {
 }
 
 func (ia *idAllocator) updateIP(newIP string) error {
-	return ia.updateEtcdEntry(newIP, ia.managementIP)
+	return ia.updateDbEntry(newIP, ia.managementIP)
 }
 
 func (ia *idAllocator) updateManagementIP(newMgmtIP string) error {
-	return ia.updateEtcdEntry(ia.nodeIP, newMgmtIP)
+	return ia.updateDbEntry(ia.nodeIP, newMgmtIP)
 }
 
-func (ia *idAllocator) updateEtcdEntry(newIP string, newManagementIP string) error {
+func (ia *idAllocator) updateDbEntry(newIP string, newManagementIP string) error {
 	// make sure that ID is allocated
 	_, err := ia.getID()
 	if err != nil {
@@ -172,25 +168,20 @@ func (ia *idAllocator) releaseID() error {
 }
 
 func (ia *idAllocator) writeIfNotExists(id uint32) (succeeded bool, err error) {
+	key := createKey(id)
 
-	value := &node.NodeInfo{
+	if found, _, _ := ia.broker.GetValue(key, &node.NodeInfo{}); found {
+		return false, nil
+	}
+
+	return true, ia.broker.Put(key, &node.NodeInfo{
 		Id:        id,
 		Name:      ia.nodeName,
 		IpAddress: ia.nodeIP,
-	}
-
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		return false, err
-	}
-
-	succeeded, err = ia.etcd.PutIfNotExists(servicelabel.GetDifferentAgentPrefix(ksr.MicroserviceLabel)+createKey(id), encoded)
-
-	return succeeded, err
-
+	})
 }
 
-// findExistingEntry lists all allocated entries and checks if the etcd contains ID assigned
+// findExistingEntry lists all allocated entries and checks if the db contains ID assigned
 // to the serviceLabel
 func (ia *idAllocator) findExistingEntry(broker keyval.ProtoBroker) (id *node.NodeInfo, err error) {
 	var existingEntry *node.NodeInfo

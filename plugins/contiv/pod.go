@@ -380,7 +380,7 @@ func (s *remoteCNIserver) vppRouteFromRequest(request *cni.CNIRequest, podIP str
 
 func (s *remoteCNIserver) stnRule(ipAddress net.IP, ifname string) *stn.STN_Rule {
 	return &stn.STN_Rule{
-		RuleName:  "rule-" + ifname,   //used as unique id for rules in etcd (managed by vpp-agent)
+		RuleName:  "rule-" + ifname,   //used as unique id for rules in db (managed by vpp-agent)
 		IpAddress: ipAddress.String(), //ipv4
 		Interface: ifname,
 	}
